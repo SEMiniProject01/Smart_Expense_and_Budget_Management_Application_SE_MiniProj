@@ -15,7 +15,7 @@
 |--------:|------|-----|-------|
 | 1 | Aniket Sen | PES1UG24CS062 | 5A |
 | 2 | Amrutha Kattimani | PES1UG24CS054 | 5A |
-| 3 | [Team Member 3 Name] | [Team Member 3 SRN] | 5A |
+| 3 | Akanksha.P | PES1UG25CS801 | 5A |
 
 ---
 
