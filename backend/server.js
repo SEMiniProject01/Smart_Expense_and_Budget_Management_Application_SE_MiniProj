@@ -100,13 +100,45 @@ app.post("/api/transactions", async (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
+// FR-06: List transactions for the requesting user
+// -----------------------------------------------------------------------------
+
+app.get("/api/transactions/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Validate user_id
+    if (!userId || !userId.trim()) {
+      return res.status(400).json({
+        error: "user_id is required.",
+      });
+    }
+
+    // Fetch only transactions belonging to the requested user
+    const transactions = await Transaction.find({
+      user_id: userId,
+    }).sort({ created_at: -1 });
+
+    return res.status(200).json({
+      transactions,
+    });
+  } catch (err) {
+    console.error("Transaction listing error:", err);
+
+    return res.status(500).json({
+      error: "Something went wrong while fetching transactions.",
+    });
+  }
+});
+
+// -----------------------------------------------------------------------------
 // Start server
 // -----------------------------------------------------------------------------
 
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(
-      `SmartBudget FR-05 backend running at http://localhost:${PORT}`
+      `SmartBudget FR-05/FR-06 backend running at http://localhost:${PORT}`
     );
   });
 }
