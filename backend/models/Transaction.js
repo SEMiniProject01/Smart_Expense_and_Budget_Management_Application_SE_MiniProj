@@ -1,3 +1,8 @@
+// models/Transaction.js — transaction schema.
+// Category intentionally remains a required string rather than a strict enum:
+// existing callers/tests use legacy values such as "Salary". FR-10 categorization
+// is applied to imported CSV narration without breaking those existing records.
+
 const mongoose = require("mongoose");
 
 const transactionSchema = new mongoose.Schema(
@@ -7,44 +12,33 @@ const transactionSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-
-    // FR-05: transaction type
     type: {
       type: String,
       enum: ["income", "expense"],
       required: true,
     },
-
-    // FR-05: transaction name
     name: {
       type: String,
       required: true,
     },
-
-    // FR-05: transaction category
     category: {
       type: String,
       required: true,
+      trim: true,
     },
-
-    // FR-05: transaction amount
     amount: {
       type: Number,
       required: true,
       min: 0.01,
     },
-
-    // Optional transaction details
     txn_date: {
       type: String,
       default: null,
     },
-
     payment_method: {
       type: String,
       default: null,
     },
-
     notes: {
       type: String,
       default: null,
@@ -55,7 +49,6 @@ const transactionSchema = new mongoose.Schema(
       createdAt: "created_at",
       updatedAt: false,
     },
-
     toJSON: {
       transform: (_doc, ret) => {
         ret.id = ret._id.toString();

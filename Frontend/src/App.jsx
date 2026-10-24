@@ -2,22 +2,59 @@ import { useEffect, useState } from "react";
 
 const API_BASE = "http://localhost:5001/api";
 
-const EXPENSE_CATEGORIES = [
-  "Food",
-  "Transport",
-  "Shopping",
-  "Entertainment",
-  "Bills",
-  "Other",
-];
+// FR-10: Categorize supported transaction narrations.
+function categorizeNarration(narration, transactionType = "expense") {
+  const normalizedNarration = String(narration || "").trim().toLowerCase();
 
-const INCOME_CATEGORIES = [
-  "Salary",
-  "Freelance",
-  "Business",
-  "Investment",
-  "Other",
-];
+  if (transactionType === "income") {
+    return "Income";
+  }
+
+  if (!normalizedNarration) {
+    return "Other";
+  }
+
+  const rules = [
+    {
+      category: "Food",
+      keywords: [
+        "swiggy", "zomato", "restaurant", "food", "grocery",
+        "groceries", "supermarket", "bakery", "cafe", "coffee",
+        "dominos", "pizza", "mcdonald", "kfc",
+      ],
+    },
+    {
+      category: "Transport",
+      keywords: [
+        "uber", "ola", "rapido", "metro", "bus fare", "bus ticket",
+        "petrol", "fuel", "diesel", "parking", "toll", "railway",
+        "train ticket", "flight ticket", "cab fare", "transport",
+      ],
+    },
+    {
+      category: "Shopping",
+      keywords: [
+        "amazon", "flipkart", "myntra", "shopping", "retail",
+        "purchase", "clothing", "clothes", "electronics",
+      ],
+    },
+    {
+      category: "Entertainment",
+      keywords: [
+        "pvr", "inox", "cinema", "movie", "netflix", "spotify",
+        "concert", "gaming", "entertainment", "bookmyshow",
+      ],
+    },
+  ];
+
+  for (const rule of rules) {
+    if (rule.keywords.some((keyword) => normalizedNarration.includes(keyword))) {
+      return rule.category;
+    }
+  }
+
+  return "Other";
+}
 
 function App() {
   // For FR-05 testing, use a fixed test user.
@@ -27,7 +64,6 @@ function App() {
   const [type, setType] = useState("expense");
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("");
   const [date, setDate] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [notes, setNotes] = useState("");
@@ -48,14 +84,11 @@ function App() {
   const [csvError, setCsvError] = useState("");
   const [csvLoading, setCsvLoading] = useState(false);
 
-  const categories =
-    type === "income"
-      ? INCOME_CATEGORIES
-      : EXPENSE_CATEGORIES;
+  // FR-10: Live category preview; backend independently determines the saved category.
+  const suggestedCategory = categorizeNarration(name, type);
 
   const handleTypeChange = (newType) => {
     setType(newType);
-    setCategory("");
     setError("");
     setSuccess("");
   };
@@ -137,8 +170,8 @@ function App() {
     setSuccess("");
 
     // Required field validation
-    if (!name.trim() || !amount.trim() || !category) {
-      setError("Name, amount and category are required.");
+    if (!name.trim() || !amount.trim()) {
+      setError("Name and amount are required.");
       return;
     }
 
@@ -163,7 +196,7 @@ function App() {
           type,
           name: name.trim(),
           amount: parsedAmount,
-          category,
+          category: suggestedCategory,
           date,
           payment_method: paymentMethod,
           notes,
@@ -186,8 +219,7 @@ function App() {
       // Clear form after successful creation
       setName("");
       setAmount("");
-      setCategory("");
-      setDate("");
+        setDate("");
       setPaymentMethod("");
       setNotes("");
       setType("expense");
@@ -271,7 +303,7 @@ function App() {
             fontSize: 14,
           }}
         >
-          FR-05 — Create an income or expense transaction
+          FR-05 — Create a transaction · FR-10 — Automatic categorization
         </p>
 
         {/* Transaction type */}
@@ -352,23 +384,25 @@ function App() {
           />
         </div>
 
-        {/* Category */}
+        {/* FR-10: Automatically categorized from transaction narration */}
         <div style={{ marginTop: 18 }}>
           <label>
-            <strong>Category</strong>
+            <strong>Automatic category (FR-10)</strong>
           </label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            style={inputStyle}
+          <div
+            aria-live="polite"
+            style={{
+              ...inputStyle,
+              background: "#f8faf9",
+              color: "#245c46",
+              fontWeight: 700,
+            }}
           >
-            <option value="">Select a category</option>
-            {categories.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
+            {suggestedCategory}
+          </div>
+          <p style={{ margin: "6px 0 0", color: "#667085", fontSize: 12 }}>
+            Category is inferred from the narration. Unrecognized expense narrations are categorized as Other.
+          </p>
         </div>
 
         {/* Date */}
@@ -548,7 +582,7 @@ function App() {
         />
 
         <h2 style={{ fontSize: 20, marginBottom: 8 }}>
-          Import Bank Statement (FR-09)
+          Import Bank Statement (FR-09 / FR-10)
         </h2>
         <p style={{ color: "#667085", fontSize: 14 }}>
           Select a CSV containing Date, Narration, and Debit and/or Credit columns.
@@ -605,7 +639,7 @@ function App() {
               >
                 <thead>
                   <tr>
-                    {["Date", "Narration", "Debit", "Credit"].map((heading) => (
+                    {["Date", "Narration", "Debit", "Credit", "Type", "Category"].map((heading) => (
                       <th
                         key={heading}
                         style={{
@@ -622,7 +656,7 @@ function App() {
                 <tbody>
                   {(csvResult.transactions || []).map((row, index) => (
                     <tr key={`${row.date || "row"}-${index}`}>
-                      {[row.date, row.narration, row.debit, row.credit].map(
+                      {[row.date, row.narration, row.debit, row.credit, row.type, row.category].map(
                         (value, cellIndex) => (
                           <td
                             key={cellIndex}
