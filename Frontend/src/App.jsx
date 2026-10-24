@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const API_BASE = "http://localhost:5001/api";
 
@@ -36,6 +36,18 @@ function App() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // FR-06/FR-07: transaction list and deletion state
+  const [transactions, setTransactions] = useState([]);
+  const [loadingTransactions, setLoadingTransactions] = useState(true);
+  const [deletingId, setDeletingId] = useState("");
+  const [listError, setListError] = useState("");
+
+  // FR-09: CSV upload and parsing state. Kept separate from FR-05/06/07 state.
+  const [csvFile, setCsvFile] = useState(null);
+  const [csvResult, setCsvResult] = useState(null);
+  const [csvError, setCsvError] = useState("");
+  const [csvLoading, setCsvLoading] = useState(false);
+
   const categories =
     type === "income"
       ? INCOME_CATEGORIES
@@ -46,6 +58,78 @@ function App() {
     setCategory("");
     setError("");
     setSuccess("");
+  };
+
+  // FR-06: Load transactions for this user.
+  const loadTransactions = async () => {
+    setLoadingTransactions(true);
+    setListError("");
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/transactions/${encodeURIComponent(userId)}`
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Could not load transactions.");
+      }
+
+      setTransactions(data.transactions || []);
+    } catch (err) {
+      setListError(err.message || "Could not load transactions.");
+    } finally {
+      setLoadingTransactions(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTransactions();
+  }, []);
+
+  // FR-07: Delete persisted transactions, or remove local-only entries locally.
+  const handleDelete = async (transaction) => {
+    setError("");
+    setSuccess("");
+    setListError("");
+
+    // No ID means this item is local-only and was not persisted in MongoDB.
+    if (!transaction.id) {
+      setTransactions((current) =>
+        current.filter((item) => item !== transaction)
+      );
+      setSuccess("Local transaction removed from the current list.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete "${transaction.name}"? This cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    setDeletingId(transaction.id);
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/transactions/${encodeURIComponent(userId)}/${encodeURIComponent(transaction.id)}`,
+        { method: "DELETE" }
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Could not delete transaction.");
+      }
+
+      setTransactions((current) =>
+        current.filter((item) => item.id !== transaction.id)
+      );
+      setSuccess("Transaction deleted successfully.");
+    } catch (err) {
+      setListError(err.message || "Could not delete transaction.");
+    } finally {
+      setDeletingId("");
+    }
   };
 
   const handleSave = async () => {
@@ -96,6 +180,9 @@ function App() {
 
       setSuccess("Transaction created successfully.");
 
+      // Refresh the list after a successful save.
+      await loadTransactions();
+
       // Clear form after successful creation
       setName("");
       setAmount("");
@@ -111,6 +198,46 @@ function App() {
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  // FR-09: Parse a selected CSV through the backend and show a preview.
+  // This does not save imported rows to MongoDB.
+  const handleCsvParse = async (event) => {
+    event.preventDefault();
+    setCsvError("");
+    setCsvResult(null);
+
+    if (!csvFile) {
+      setCsvError("Please select a CSV file.");
+      return;
+    }
+
+    if (!csvFile.name.toLowerCase().endsWith(".csv")) {
+      setCsvError("Please select a .csv file.");
+      return;
+    }
+
+    setCsvLoading(true);
+
+    try {
+      const csvText = await csvFile.text();
+      const response = await fetch(`${API_BASE}/transactions/import/parse`, {
+        method: "POST",
+        headers: { "Content-Type": "text/csv" },
+        body: csvText,
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "CSV parsing failed.");
+      }
+
+      setCsvResult(data);
+    } catch (err) {
+      setCsvError(err.message || "Could not parse the CSV file.");
+    } finally {
+      setCsvLoading(false);
     }
   };
 
@@ -133,12 +260,7 @@ function App() {
           boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
         }}
       >
-        <h1
-          style={{
-            marginTop: 0,
-            marginBottom: 6,
-          }}
-        >
+        <h1 style={{ marginTop: 0, marginBottom: 6 }}>
           Add Transaction
         </h1>
 
@@ -173,14 +295,8 @@ function App() {
                 padding: 11,
                 borderRadius: 8,
                 border: "1px solid #ccc",
-                background:
-                  type === "expense"
-                    ? "#245c46"
-                    : "#ffffff",
-                color:
-                  type === "expense"
-                    ? "#ffffff"
-                    : "#222222",
+                background: type === "expense" ? "#245c46" : "#ffffff",
+                color: type === "expense" ? "#ffffff" : "#222222",
                 cursor: "pointer",
               }}
             >
@@ -195,14 +311,8 @@ function App() {
                 padding: 11,
                 borderRadius: 8,
                 border: "1px solid #ccc",
-                background:
-                  type === "income"
-                    ? "#245c46"
-                    : "#ffffff",
-                color:
-                  type === "income"
-                    ? "#ffffff"
-                    : "#222222",
+                background: type === "income" ? "#245c46" : "#ffffff",
+                color: type === "income" ? "#ffffff" : "#222222",
                 cursor: "pointer",
               }}
             >
@@ -216,14 +326,11 @@ function App() {
           <label>
             <strong>Name</strong>
           </label>
-
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={
-              type === "income"
-                ? "e.g. Monthly salary"
-                : "e.g. Grocery shopping"
+              type === "income" ? "e.g. Monthly salary" : "e.g. Grocery shopping"
             }
             style={inputStyle}
           />
@@ -234,7 +341,6 @@ function App() {
           <label>
             <strong>Amount (₹)</strong>
           </label>
-
           <input
             type="number"
             min="0"
@@ -251,14 +357,12 @@ function App() {
           <label>
             <strong>Category</strong>
           </label>
-
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             style={inputStyle}
           >
             <option value="">Select a category</option>
-
             {categories.map((item) => (
               <option key={item} value={item}>
                 {item}
@@ -272,7 +376,6 @@ function App() {
           <label>
             <strong>Date (optional)</strong>
           </label>
-
           <input
             type="date"
             value={date}
@@ -286,12 +389,9 @@ function App() {
           <label>
             <strong>Payment method (optional)</strong>
           </label>
-
           <input
             value={paymentMethod}
-            onChange={(e) =>
-              setPaymentMethod(e.target.value)
-            }
+            onChange={(e) => setPaymentMethod(e.target.value)}
             placeholder="UPI, card, cash..."
             style={inputStyle}
           />
@@ -302,7 +402,6 @@ function App() {
           <label>
             <strong>Notes (optional)</strong>
           </label>
-
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
@@ -365,10 +464,184 @@ function App() {
             opacity: saving ? 0.7 : 1,
           }}
         >
-          {saving
-            ? "Saving..."
-            : "Save Transaction"}
+          {saving ? "Saving..." : "Save Transaction"}
         </button>
+
+        {/* FR-06 and FR-07: Transaction list */}
+        <hr
+          style={{
+            margin: "28px 0",
+            border: "none",
+            borderTop: "1px solid #e5e7eb",
+          }}
+        />
+
+        <h2 style={{ fontSize: 20, marginBottom: 14 }}>
+          Transactions
+        </h2>
+
+        {listError && (
+          <p style={{ color: "#b42318", fontSize: 14 }}>{listError}</p>
+        )}
+
+        {loadingTransactions ? (
+          <p style={{ color: "#667085" }}>Loading transactions...</p>
+        ) : transactions.length === 0 ? (
+          <p style={{ color: "#667085" }}>No transactions found.</p>
+        ) : (
+          <div style={{ display: "grid", gap: 12 }}>
+            {transactions.map((transaction) => (
+              <div
+                key={
+                  transaction.id ||
+                  `${transaction.name}-${transaction.amount}-${transaction.date || ""}`
+                }
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: 12,
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 8,
+                }}
+              >
+                <div>
+                  <strong>{transaction.name}</strong>
+                  <div style={{ color: "#667085", fontSize: 13 }}>
+                    {transaction.category} · {transaction.type}
+                  </div>
+                  <div style={{ marginTop: 4 }}>
+                    ₹{Number(transaction.amount).toLocaleString("en-IN")}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleDelete(transaction)}
+                  disabled={Boolean(transaction.id && deletingId === transaction.id)}
+                  style={{
+                    padding: "8px 12px",
+                    border: "1px solid #f0b4b4",
+                    borderRadius: 8,
+                    background: "#fff1f1",
+                    color: "#b42318",
+                    cursor: "pointer",
+                  }}
+                >
+                  {transaction.id && deletingId === transaction.id
+                    ? "Deleting..."
+                    : "Delete"}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* FR-09: Bank statement CSV import preview. Existing FR-05/06/07 UI above is unchanged. */}
+        <hr
+          style={{
+            margin: "28px 0",
+            border: "none",
+            borderTop: "1px solid #e5e7eb",
+          }}
+        />
+
+        <h2 style={{ fontSize: 20, marginBottom: 8 }}>
+          Import Bank Statement (FR-09)
+        </h2>
+        <p style={{ color: "#667085", fontSize: 14 }}>
+          Select a CSV containing Date, Narration, and Debit and/or Credit columns.
+        </p>
+
+        <form onSubmit={handleCsvParse}>
+          <input
+            type="file"
+            accept=".csv,text/csv"
+            onChange={(event) => {
+              setCsvFile(event.target.files?.[0] || null);
+              setCsvResult(null);
+              setCsvError("");
+            }}
+            style={{ ...inputStyle, marginBottom: 12 }}
+          />
+          <button
+            type="submit"
+            disabled={csvLoading}
+            style={{
+              width: "100%",
+              padding: 12,
+              border: "none",
+              borderRadius: 8,
+              background: "#245c46",
+              color: "#ffffff",
+              fontWeight: 700,
+              cursor: csvLoading ? "default" : "pointer",
+              opacity: csvLoading ? 0.7 : 1,
+            }}
+          >
+            {csvLoading ? "Parsing CSV..." : "Upload and Parse CSV"}
+          </button>
+        </form>
+
+        {csvError && (
+          <p role="alert" style={{ color: "#b42318", fontSize: 14 }}>
+            {csvError}
+          </p>
+        )}
+
+        {csvResult && (
+          <div style={{ marginTop: 16 }}>
+            <p role="status" style={{ color: "#216e39" }}>
+              {csvResult.message} Rows parsed: {csvResult.count}
+            </p>
+            <div style={{ overflowX: "auto" }}>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: 13,
+                }}
+              >
+                <thead>
+                  <tr>
+                    {["Date", "Narration", "Debit", "Credit"].map((heading) => (
+                      <th
+                        key={heading}
+                        style={{
+                          textAlign: "left",
+                          padding: 8,
+                          borderBottom: "1px solid #ddd",
+                        }}
+                      >
+                        {heading}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(csvResult.transactions || []).map((row, index) => (
+                    <tr key={`${row.date || "row"}-${index}`}>
+                      {[row.date, row.narration, row.debit, row.credit].map(
+                        (value, cellIndex) => (
+                          <td
+                            key={cellIndex}
+                            style={{
+                              padding: 8,
+                              borderBottom: "1px solid #eee",
+                            }}
+                          >
+                            {value ?? ""}
+                          </td>
+                        )
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
