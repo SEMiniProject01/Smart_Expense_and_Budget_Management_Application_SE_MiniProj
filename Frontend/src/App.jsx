@@ -78,6 +78,9 @@ function App() {
   const [deletingId, setDeletingId] = useState("");
   const [listError, setListError] = useState("");
 
+  // FR-15: Simulated detected transactions are added to client state only.
+  const [detectedMessage, setDetectedMessage] = useState("");
+
   // FR-09: CSV upload and parsing state. Kept separate from FR-05/06/07 state.
   const [csvFile, setCsvFile] = useState(null);
   const [csvResult, setCsvResult] = useState(null);
@@ -120,18 +123,47 @@ function App() {
     loadTransactions();
   }, []);
 
+  // FR-15: Add a simulated detected transaction to the current client-side list.
+  // This is intentionally not sent to the backend or saved in MongoDB.
+  const handleAddDetectedTransaction = () => {
+    const examples = [
+      { name: "Detected Coffee Shop Payment", type: "expense", category: "Food", amount: 180 },
+      { name: "Detected Metro Recharge", type: "expense", category: "Transport", amount: 60 },
+      { name: "Detected Online Shopping", type: "expense", category: "Shopping", amount: 450 },
+      { name: "Detected Movie Ticket", type: "expense", category: "Entertainment", amount: 320 },
+      { name: "Detected Salary Credit", type: "income", category: "Income", amount: 25000 },
+      { name: "Detected Unknown Transaction", type: "expense", category: "Other", amount: 120 },
+    ];
+
+    const example = examples[Math.floor(Math.random() * examples.length)];
+    const detectedTransaction = {
+      ...example,
+      date: new Date().toISOString().slice(0, 10),
+      localOnly: true,
+      localKey: `detected-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    };
+
+    setTransactions((current) => [detectedTransaction, ...current]);
+    setDetectedMessage(
+      `Simulated transaction added: ${detectedTransaction.name} (₹${detectedTransaction.amount}). It exists only in this client-side list.`
+    );
+    setError("");
+    setSuccess("");
+  };
+
   // FR-07: Delete persisted transactions, or remove local-only entries locally.
   const handleDelete = async (transaction) => {
     setError("");
     setSuccess("");
     setListError("");
 
-    // No ID means this item is local-only and was not persisted in MongoDB.
-    if (!transaction.id) {
+    // FR-15 simulated entries (and any other no-ID entry) are local-only.
+    if (transaction.localOnly || !transaction.id) {
       setTransactions((current) =>
         current.filter((item) => item !== transaction)
       );
       setSuccess("Local transaction removed from the current list.");
+      setDetectedMessage("");
       return;
     }
 
@@ -501,6 +533,45 @@ function App() {
           {saving ? "Saving..." : "Save Transaction"}
         </button>
 
+        {/* FR-15: Simulate a detected transaction and insert it into client-side state. */}
+        <div
+          style={{
+            marginTop: 18,
+            padding: 14,
+            border: "1px solid #c7d7ce",
+            borderRadius: 10,
+            background: "#f3f8f5",
+          }}
+        >
+          <h2 style={{ fontSize: 18, margin: "0 0 6px" }}>
+            Simulated Transaction Detection (FR-15)
+          </h2>
+          <p style={{ color: "#667085", fontSize: 13, margin: "0 0 12px" }}>
+            Click to simulate a detected bank transaction and add it to the current list. This demo entry is client-side only and is not saved to the backend.
+          </p>
+          <button
+            type="button"
+            onClick={handleAddDetectedTransaction}
+            style={{
+              width: "100%",
+              padding: 12,
+              border: "none",
+              borderRadius: 8,
+              background: "#245c46",
+              color: "#ffffff",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            + Add Simulated Detected Transaction
+          </button>
+          {detectedMessage && (
+            <p role="status" style={{ color: "#216e39", fontSize: 13, marginBottom: 0 }}>
+              {detectedMessage}
+            </p>
+          )}
+        </div>
+
         {/* FR-06 and FR-07: Transaction list */}
         <hr
           style={{
@@ -527,6 +598,7 @@ function App() {
             {transactions.map((transaction) => (
               <div
                 key={
+                  transaction.localKey ||
                   transaction.id ||
                   `${transaction.name}-${transaction.amount}-${transaction.date || ""}`
                 }
