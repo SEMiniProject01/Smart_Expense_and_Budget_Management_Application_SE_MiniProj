@@ -2,6 +2,7 @@
  * transactions.test.js
  *
  * FR-05: Create Income/Expense Transaction
+ * FR-06: List Transactions for Requesting User
  *
  * Tests:
  * - Create valid expense
@@ -9,6 +10,9 @@
  * - Required field validation
  * - Transaction type validation
  * - Amount validation
+ * - List transactions for a user
+ * - Return empty list when user has no transactions
+ * - Do not return another user's transactions
  */
 
 const request = require("supertest");
@@ -229,5 +233,126 @@ describe("FR-05: Amount validation", () => {
     });
 
     expect(response.status).toBe(400);
+  });
+});
+
+// -----------------------------------------------------------------------------
+// FR-06: List transactions for requesting user
+// -----------------------------------------------------------------------------
+
+describe("FR-06: List transactions", () => {
+  afterEach(async () => {
+    await mongoose.connection
+      .collection("transactions")
+      .deleteMany({});
+  });
+
+  test("lists transactions belonging to the requesting user", async () => {
+    await createTransaction({
+      user_id: "test-user-001",
+      name: "Lunch",
+      category: "Food",
+      amount: 450,
+    });
+
+    await createTransaction({
+      user_id: "test-user-001",
+      name: "Bus Ticket",
+      category: "Transport",
+      amount: 50,
+    });
+
+    const response = await request(app)
+      .get("/api/transactions/test-user-001");
+
+    expect(response.status).toBe(200);
+
+    expect(response.body).toHaveProperty("transactions");
+
+    expect(Array.isArray(response.body.transactions)).toBe(
+      true
+    );
+
+    expect(response.body.transactions).toHaveLength(2);
+
+    expect(
+      response.body.transactions.every(
+        (transaction) =>
+          transaction.user_id === "test-user-001"
+      )
+    ).toBe(true);
+  });
+
+  test("returns an empty list when the user has no transactions", async () => {
+    const response = await request(app)
+      .get("/api/transactions/user-with-no-transactions");
+
+    expect(response.status).toBe(200);
+
+    expect(response.body).toHaveProperty("transactions");
+
+    expect(response.body.transactions).toEqual([]);
+  });
+
+  test("does not return transactions belonging to another user", async () => {
+    await createTransaction({
+      user_id: "test-user-001",
+      name: "My Lunch",
+      category: "Food",
+      amount: 450,
+    });
+
+    await createTransaction({
+      user_id: "other-user-002",
+      name: "Other User Expense",
+      category: "Shopping",
+      amount: 1000,
+    });
+
+    const response = await request(app)
+      .get("/api/transactions/test-user-001");
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.transactions).toHaveLength(1);
+
+    expect(response.body.transactions[0].user_id).toBe(
+      "test-user-001"
+    );
+
+    expect(response.body.transactions[0].name).toBe(
+      "My Lunch"
+    );
+  });
+
+  test("returns transactions sorted by newest first", async () => {
+    await createTransaction({
+      user_id: "test-user-001",
+      name: "First Transaction",
+      category: "Food",
+      amount: 100,
+    });
+
+    await createTransaction({
+      user_id: "test-user-001",
+      name: "Second Transaction",
+      category: "Shopping",
+      amount: 200,
+    });
+
+    const response = await request(app)
+      .get("/api/transactions/test-user-001");
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.transactions).toHaveLength(2);
+
+    expect(response.body.transactions[0].name).toBe(
+      "Second Transaction"
+    );
+
+    expect(response.body.transactions[1].name).toBe(
+      "First Transaction"
+    );
   });
 });
