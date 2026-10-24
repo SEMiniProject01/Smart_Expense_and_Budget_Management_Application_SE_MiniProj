@@ -1,4 +1,5 @@
 import Papa from "papaparse";
+import "./App.css";
 import React, { useState, useEffect } from "react";
 import {
   LayoutDashboard, ArrowLeftRight, Wallet, BarChart3, FileText, Target,
