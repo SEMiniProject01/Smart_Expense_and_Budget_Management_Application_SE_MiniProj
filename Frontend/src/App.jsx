@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
-
-const API_BASE = "http://localhost:5001/api";
+import {
+  fetchTransactions,
+  createTransaction,
+  deleteTransaction,
+  parseTransactionCsv,
+} from "./api/transactionsApi";
 
 // FR-10: Categorize supported transaction narrations.
 function categorizeNarration(narration, transactionType = "expense") {
@@ -102,16 +106,8 @@ function App() {
     setListError("");
 
     try {
-      const response = await fetch(
-        `${API_BASE}/transactions/${encodeURIComponent(userId)}`
-      );
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Could not load transactions.");
-      }
-
-      setTransactions(data.transactions || []);
+      const fetchedTransactions = await fetchTransactions(userId);
+      setTransactions(fetchedTransactions);
     } catch (err) {
       setListError(err.message || "Could not load transactions.");
     } finally {
@@ -176,15 +172,7 @@ function App() {
     setDeletingId(transaction.id);
 
     try {
-      const response = await fetch(
-        `${API_BASE}/transactions/${encodeURIComponent(userId)}/${encodeURIComponent(transaction.id)}`,
-        { method: "DELETE" }
-      );
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Could not delete transaction.");
-      }
+      await deleteTransaction(userId, transaction.id);
 
       setTransactions((current) =>
         current.filter((item) => item.id !== transaction.id)
@@ -218,30 +206,16 @@ function App() {
     setSaving(true);
 
     try {
-      const response = await fetch(`${API_BASE}/transactions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          user_id: userId,
-          type,
-          name: name.trim(),
-          amount: parsedAmount,
-          category: suggestedCategory,
-          date,
-          payment_method: paymentMethod,
-          notes,
-        }),
+      await createTransaction({
+        user_id: userId,
+        type,
+        name: name.trim(),
+        amount: parsedAmount,
+        category: suggestedCategory,
+        date,
+        payment_method: paymentMethod,
+        notes,
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.error || "Could not create transaction."
-        );
-      }
 
       setSuccess("Transaction created successfully.");
 
@@ -286,17 +260,7 @@ function App() {
 
     try {
       const csvText = await csvFile.text();
-      const response = await fetch(`${API_BASE}/transactions/import/parse`, {
-        method: "POST",
-        headers: { "Content-Type": "text/csv" },
-        body: csvText,
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "CSV parsing failed.");
-      }
-
+      const data = await parseTransactionCsv(csvText);
       setCsvResult(data);
     } catch (err) {
       setCsvError(err.message || "Could not parse the CSV file.");

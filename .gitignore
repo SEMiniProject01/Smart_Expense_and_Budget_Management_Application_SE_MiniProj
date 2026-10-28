@@ -1,0 +1,30 @@
+# Node dependencies
+backend/node_modules/
+Frontend/node_modules/
+
+# Obsolete SQLite files — current implementation uses MongoDB (SRS §2.5)
+backend/smartbudget.db
+backend/smartbudget.db-shm
+backend/smartbudget.db-wal
+
+# macOS metadata
+.DS_Store
+Frontend/.DS_Store
+
+# Frontend production build
+Frontend/dist/
+
+# Vite dev cache
+Frontend/.vite/
+
+# Test coverage output
+backend/coverage/
+Frontend/coverage/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment files (do not commit secrets)
+.env
+.env.local
