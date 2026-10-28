@@ -165,27 +165,37 @@ function App() {
     }
   };
 
-  const handleSave = async () => {
-    setError("");
-    setSuccess("");
+const handleSave = async () => {
+  setError("");
+  setSuccess("");
 
-    // Required field validation
-    if (!name.trim() || !amount.trim()) {
-      setError("Name and amount are required.");
-      return;
-    }
+  // Required field validation
+  if (!name.trim() || !amount.trim()) {
+    setError("Please enter a transaction name and amount.");
+    return;
+  }
 
-    // Amount validation
-    const parsedAmount = parseFloat(amount);
+  // Numeric input validation
+  const parsedAmount = Number(amount);
 
-    if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
-      setError("Amount must be a positive number.");
-      return;
-    }
+  if (!Number.isFinite(parsedAmount)) {
+    setError("Invalid amount. Please enter a valid number.");
+    return;
+  }
 
-    setSaving(true);
+  if (parsedAmount < 0) {
+    setError("Amount cannot be negative. Please enter a positive amount.");
+    return;
+  }
 
-    try {
+  if (parsedAmount === 0) {
+    setError("Amount must be greater than ₹0.");
+    return;
+  }
+
+  setSaving(true);
+
+  try {
       const response = await fetch(`${API_BASE}/transactions`, {
         method: "POST",
         headers: {
@@ -375,7 +385,7 @@ function App() {
           </label>
           <input
             type="number"
-            min="0"
+            min="0.01"
             step="0.01"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
