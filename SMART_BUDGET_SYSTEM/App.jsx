@@ -30,7 +30,7 @@ const LIGHT_COLORS = {
   amber: "#D79A3B",
   amberBg: "#FBEFD9",
   red: "#D2574A",
-  redBg: "#FBE7E4",
+  redBg: "#FBE7E4",   
   green: "#3E8E5C",
   greenBg: "#E4F3E7",
   border: "#E7E4D8",
@@ -263,13 +263,19 @@ function Sidebar({ active, onNav, user, theme, toggleTheme }) {
         </span>
       </div>
 
-      <nav style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1 }}>
+      {/* Primary navigation: all six destinations are keyboard accessible buttons. */}
+      <nav
+        aria-label="Primary navigation"
+        style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1 }}
+      >
         {NAV.map(({ key, label, icon: Icon }) => {
           const isActive = key === active;
           return (
             <button
               key={key}
+              type="button"
               onClick={() => onNav(key)}
+              aria-current={isActive ? "page" : undefined}
               style={{
                 display: "flex", alignItems: "center", gap: 11, padding: "10px 12px",
                 borderRadius: 10, border: "none", cursor: "pointer", textAlign: "left",
@@ -279,8 +285,8 @@ function Sidebar({ active, onNav, user, theme, toggleTheme }) {
                 borderLeft: isActive ? `3px solid ${COLORS.lime}` : "3px solid transparent",
               }}
             >
-              <Icon size={17} />
-              {label}
+              <Icon size={17} aria-hidden="true" focusable="false" />
+              <span>{label}</span>
             </button>
           );
         })}
@@ -299,18 +305,26 @@ function Sidebar({ active, onNav, user, theme, toggleTheme }) {
           <div style={{ fontSize: 11.5, color: "#9AAA9E" }}>Personal Account</div>
         </div>
         <button
+          type="button"
           onClick={() => onNav("settings")}
           title="Settings"
+          aria-label="Open settings"
+          aria-current={active === "settings" ? "page" : undefined}
           style={{ border: "none", background: "none", cursor: "pointer", display: "flex", padding: 4 }}
         >
-          <Settings size={16} color="#9AAA9E" />
+          <Settings size={16} color="#9AAA9E" aria-hidden="true" focusable="false" />
         </button>
         <button
+          type="button"
           onClick={toggleTheme}
           title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          aria-pressed={theme === "dark"}
           style={{ border: "none", background: "none", cursor: "pointer", display: "flex", padding: 4 }}
         >
-          {theme === "dark" ? <Sun size={16} color="#9AAA9E" /> : <Moon size={16} color="#9AAA9E" />}
+          {theme === "dark"
+            ? <Sun size={16} color="#9AAA9E" aria-hidden="true" focusable="false" />
+            : <Moon size={16} color="#9AAA9E" aria-hidden="true" focusable="false" />}
         </button>
       </div>
     </aside>
@@ -2157,12 +2171,18 @@ export default function SmartBudgetApp() {
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
         * { box-sizing: border-box; }
         input:focus, textarea:focus { border-color: ${COLORS.forestMid} !important; }
+        /* Visible keyboard focus for navigation and other interactive controls. */
+        button:focus-visible, a:focus-visible, input:focus-visible,
+        textarea:focus-visible, select:focus-visible {
+          outline: 3px solid ${COLORS.lime};
+          outline-offset: 3px;
+        }
         table th, table td { text-align: left; }
         .spin { animation: sb-spin 0.9s linear infinite; }
         @keyframes sb-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       `}</style>
       <Sidebar active={screen} onNav={setScreen} user={user} theme={theme} toggleTheme={toggleTheme} />
-      <main style={{ flex: 1, overflowY: "auto", padding: "28px 32px" }}>
+      <main id="main-content" style={{ flex: 1, overflowY: "auto", padding: "28px 32px" }}>
         <Screen {...screenProps} />
       </main>
       {showModal && (
