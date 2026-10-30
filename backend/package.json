@@ -4,12 +4,6 @@
   "description": "SmartBudget auth backend (Node + Express + MongoDB/Mongoose) — MERN stack",
   "main": "server.js",
   "type": "commonjs",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js",
-    "test": "jest",
-    "test:coverage": "jest --coverage"
-  },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
@@ -20,5 +14,12 @@
     "jest": "^30.5.2",
     "mongodb-memory-server": "^11.3.0",
     "supertest": "^7.3.1"
+  },
+  "scripts": {
+  "start": "node server.js",
+  "dev": "node --watch server.js",
+  "build": "node --check server.js && node --check db.js",
+  "test": "jest",
+  "test:coverage": "jest --coverage"
   }
 }
