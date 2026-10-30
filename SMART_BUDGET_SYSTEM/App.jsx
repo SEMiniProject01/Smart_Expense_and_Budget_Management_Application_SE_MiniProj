@@ -216,12 +216,21 @@ function IconBadge({ icon: Icon, tone = "forest", size = 36 }) {
   );
 }
 
-function ProgressBar({ pct, tone }) {
+function ProgressBar({ pct, tone, label = "Progress" }) {
   const color = tone === "red" ? COLORS.red : tone === "amber" ? COLORS.amber : COLORS.green;
+  const safePct = Math.max(0, Math.min(Number(pct) || 0, 100));
   return (
-    <div style={{ height: 8, background: "#EEEDE3", borderRadius: 999, overflow: "hidden" }}>
+    <div
+      role="progressbar"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(safePct)}
+      aria-valuetext={`${Math.round(safePct)}% complete`}
+      style={{ height: 8, background: "#EEEDE3", borderRadius: 999, overflow: "hidden" }}
+    >
       <div style={{
-        width: `${Math.min(pct, 100)}%`, height: "100%", background: color, borderRadius: 999,
+        width: `${safePct}%`, height: "100%", background: color, borderRadius: 999,
         transition: "width .3s ease",
       }} />
     </div>
@@ -416,7 +425,10 @@ function Header({ title, subtitle, onAdd, onUpload, uploading, onNav, transactio
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
         <div style={{ position: "relative" }}>
           <button
+            type="button"
             onClick={() => setShowNotifs((v) => !v)}
+            aria-label={`Notifications: ${notifications.length} available`}
+            aria-expanded={showNotifs}
             style={{
               width: 38, height: 38, borderRadius: 10, border: `1px solid ${COLORS.border}`,
               background: COLORS.white, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
@@ -435,7 +447,10 @@ function Header({ title, subtitle, onAdd, onUpload, uploading, onNav, transactio
           {showNotifs && (
             <>
               <div onClick={() => setShowNotifs(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
-              <div style={{
+              <div
+                role="region"
+                aria-label="Notifications"
+                style={{
                 position: "absolute", top: 46, right: 0, width: 300, background: COLORS.white,
                 border: `1px solid ${COLORS.border}`, borderRadius: 14, boxShadow: "0 12px 32px rgba(11,32,24,0.14)",
                 padding: 12, zIndex: 50,
@@ -796,7 +811,7 @@ function DashboardScreen({ onAdd, transactions, onAutoDetected, onUpload, upload
                         {money(b.spent)}
                       </span>
                     </div>
-                    <ProgressBar pct={pct} tone="green" />
+                    <ProgressBar pct={pct} tone="green" label={`${b.name} spending proportion`} />
                   </div>
                 );
               })}
@@ -1021,7 +1036,7 @@ function ProgressBarWide({ spent, total }) {
   const pct = Math.round((spent / total) * 100);
   return (
     <div style={{ width: 220 }}>
-      <ProgressBar pct={pct} tone={statusTone(spent, total)} />
+      <ProgressBar pct={pct} tone={statusTone(spent, total)} label="Monthly budget used" />
       <div style={{ textAlign: "right", fontSize: 11.5, color: COLORS.slate, marginTop: 4 }}>{pct}% used</div>
     </div>
   );
@@ -1105,8 +1120,8 @@ function AnalyticsScreen({ onAdd, onNav, transactions, user }) {
                 <XAxis dataKey="month" tick={{ fontSize: 12, fill: COLORS.slate }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: COLORS.slate }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${v / 1000}K`} />
                 <Tooltip formatter={(v) => money(v)} contentStyle={{ borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 12 }} />
-                <Line type="monotone" dataKey="income" stroke={COLORS.forestMid} strokeWidth={2.5} dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="expense" stroke={COLORS.lime} strokeWidth={2.5} dot={{ r: 3 }} />
+                <Line name="Income" type="monotone" dataKey="income" stroke={COLORS.forestMid} strokeWidth={2.5} dot={{ r: 3 }} />
+                <Line name="Expenses" type="monotone" dataKey="expense" stroke={COLORS.lime} strokeWidth={2.5} dot={{ r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
           )}
@@ -1131,7 +1146,7 @@ function AnalyticsScreen({ onAdd, onNav, transactions, user }) {
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
                 {pieData.map((d) => (
                   <div key={d.name} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, color: COLORS.slate }}>
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: d.color }} />
+                    <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: "50%", background: d.color }} />
                     {d.name}
                   </div>
                 ))}
@@ -1151,7 +1166,7 @@ function AnalyticsScreen({ onAdd, onNav, transactions, user }) {
               <div key={b.name} style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: COLORS.slate, width: 16 }}>{i + 1}</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, width: 130 }}>{b.name}</span>
-                <div style={{ flex: 1 }}><ProgressBar pct={(b.value / maxCategorySpend) * 100} tone="green" /></div>
+                <div style={{ flex: 1 }}><ProgressBar pct={(b.value / maxCategorySpend) * 100} tone="green" label={`${b.name} spending proportion`} /></div>
                 <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: COLORS.ink, width: 90, textAlign: "right" }}>{money(b.value)}</span>
               </div>
             ))}
@@ -1262,7 +1277,7 @@ function GoalsScreen({ onAdd, onNav, goals, onNewGoal, onDeleteGoal, transaction
                   </button>
                 </div>
               </div>
-              <ProgressBar pct={Math.min(pct, 100)} tone="green" />
+              <ProgressBar pct={Math.min(pct, 100)} tone="green" label={`${g.name} savings goal progress`} />
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 12.5, fontFamily: "'JetBrains Mono', monospace", color: COLORS.ink }}>
                 <span>{money(g.current)}</span>
                 <span style={{ color: COLORS.slate }}>of {money(g.target)}</span>
@@ -1339,7 +1354,7 @@ function AddGoalModal({ onClose, onSave, saving, error }) {
           </div>
 
           {(localError || error) && (
-            <div style={{ fontSize: 12.5, color: COLORS.red, background: COLORS.redBg, borderRadius: 8, padding: "8px 12px" }}>
+            <div role="alert" style={{ fontSize: 12.5, color: COLORS.red, background: COLORS.redBg, borderRadius: 8, padding: "8px 12px" }}>
               {localError || error}
             </div>
           )}
@@ -1479,7 +1494,7 @@ function SettingsScreen({ user, onLogout, onUpdateSettings, settingsSaving, sett
           </div>
 
           {(localError || settingsError) && (
-            <div style={{ fontSize: 12.5, color: COLORS.red, marginBottom: 12 }}>
+            <div role="alert" style={{ fontSize: 12.5, color: COLORS.red, marginBottom: 12 }}>
               {localError || settingsError}
             </div>
           )}
@@ -1499,7 +1514,7 @@ function SettingsScreen({ user, onLogout, onUpdateSettings, settingsSaving, sett
               {settingsSaving ? "Saving..." : "Save budget"}
             </button>
             {saved && !settingsSaving && !localError && !settingsError && (
-              <span style={{ fontSize: 12.5, color: COLORS.green, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+              <span role="status" aria-live="polite" style={{ fontSize: 12.5, color: COLORS.green, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
                 <CheckCircle2 size={14} /> Saved
               </span>
             )}
@@ -1611,7 +1626,7 @@ function AddExpenseModal({ onClose, onSave, saving, error }) {
           </div>
 
           {(localError || error) && (
-            <div style={{ fontSize: 12.5, color: COLORS.red, background: COLORS.redBg, borderRadius: 8, padding: "8px 12px" }}>
+            <div role="alert" style={{ fontSize: 12.5, color: COLORS.red, background: COLORS.redBg, borderRadius: 8, padding: "8px 12px" }}>
               {localError || error}
             </div>
           )}
@@ -1784,7 +1799,7 @@ function LoginScreen({ onLogin, theme, toggleTheme }) {
             </div>
 
             {error && (
-              <div style={{ fontSize: 12.5, color: COLORS.red, background: COLORS.redBg, borderRadius: 8, padding: "8px 12px" }}>
+              <div role="alert" style={{ fontSize: 12.5, color: COLORS.red, background: COLORS.redBg, borderRadius: 8, padding: "8px 12px" }}>
                 {error}
               </div>
             )}
