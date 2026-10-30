@@ -336,5 +336,66 @@ describe("FR-07: Delete transaction", () => {
     expect(response.status).toBe(400);
   });
 });
+// -----------------------------------------------------------------------------
+// NFR-08: User Data Isolation
+// -----------------------------------------------------------------------------
 
+describe("NFR-08: User Data Isolation", () => {
+  afterEach(async () => {
+    await mongoose.connection.collection("transactions").deleteMany({});
+    await mongoose.connection.collection("goals").deleteMany({});
+  });
 
+  test("user can retrieve only their own transactions", async () => {
+    await createTransaction({
+      user_id: "user-A",
+      name: "User A Expense",
+    });
+
+    await createTransaction({
+      user_id: "user-B",
+      name: "User B Expense",
+    });
+
+    const response = await request(app).get(
+      "/api/transactions/user-A"
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.transactions).toHaveLength(1);
+    expect(response.body.transactions[0].user_id).toBe("user-A");
+    expect(response.body.transactions[0].name).toBe("User A Expense");
+  });
+
+  test("user can retrieve only their own savings goals", async () => {
+    await request(app).post("/api/goals").send({
+      user_id: "user-A",
+      name: "Buy a Laptop",
+      target: 80000,
+    });
+
+    await request(app).post("/api/goals").send({
+      user_id: "user-B",
+      name: "Buy a Car",
+      target: 500000,
+    });
+
+    const response = await request(app).get(
+      "/api/goals/user-A"
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.goals).toHaveLength(1);
+    expect(response.body.goals[0].user_id).toBe("user-A");
+    expect(response.body.goals[0].name).toBe("Buy a Laptop");
+  });
+
+  test("returns an empty goal list when the user has no goals", async () => {
+    const response = await request(app).get(
+      "/api/goals/user-with-no-goals"
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.goals).toEqual([]);
+  });
+});
