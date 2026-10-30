@@ -1,11 +1,11 @@
+
 /**
  * transactions.test.js
  *
  * FR-05: Create Income/Expense Transaction
  * FR-06: List Transactions for Requesting User
  * FR-07: Delete a persisted transaction
- *
- * Tests cover creation validation, user-scoped listing, and deletion.
+ * NFR-05: API Error Handling
  */
 
 const request = require("supertest");
@@ -30,10 +30,7 @@ afterAll(async () => {
   await mongod.stop();
 });
 
-// -----------------------------------------------------------------------------
 // Helper
-// -----------------------------------------------------------------------------
-
 async function createTransaction(overrides = {}) {
   return request(app)
     .post("/api/transactions")
@@ -47,22 +44,14 @@ async function createTransaction(overrides = {}) {
     });
 }
 
-// -----------------------------------------------------------------------------
-// FR-05: Valid transactions
-// -----------------------------------------------------------------------------
-
+// FR-05: Create transaction
 describe("FR-05: Create transaction", () => {
   afterEach(async () => {
     await mongoose.connection.collection("transactions").deleteMany({});
   });
 
   test("creates a valid expense transaction", async () => {
-    const response = await createTransaction({
-      type: "expense",
-      name: "Lunch",
-      category: "Food",
-      amount: 450,
-    });
+    const response = await createTransaction();
 
     expect(response.status).toBe(201);
     expect(response.body).toHaveProperty("transaction");
@@ -89,45 +78,27 @@ describe("FR-05: Create transaction", () => {
   });
 });
 
-// -----------------------------------------------------------------------------
 // FR-05: Required field validation
-// -----------------------------------------------------------------------------
-
 describe("FR-05: Required field validation", () => {
   afterEach(async () => {
     await mongoose.connection.collection("transactions").deleteMany({});
   });
 
-  test("rejects missing user_id", async () => {
-    const response = await createTransaction({ user_id: undefined });
-    expect(response.status).toBe(400);
-  });
+  test.each([
+    ["user_id", { user_id: undefined }],
+    ["type", { type: undefined }],
+    ["name", { name: undefined }],
+    ["category", { category: undefined }],
+    ["amount", { amount: undefined }],
+  ])("rejects missing %s", async (_field, overrides) => {
+    const response = await createTransaction(overrides);
 
-  test("rejects missing type", async () => {
-    const response = await createTransaction({ type: undefined });
     expect(response.status).toBe(400);
-  });
-
-  test("rejects missing name", async () => {
-    const response = await createTransaction({ name: undefined });
-    expect(response.status).toBe(400);
-  });
-
-  test("rejects missing category", async () => {
-    const response = await createTransaction({ category: undefined });
-    expect(response.status).toBe(400);
-  });
-
-  test("rejects missing amount", async () => {
-    const response = await createTransaction({ amount: undefined });
-    expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty("error");
   });
 });
 
-// -----------------------------------------------------------------------------
-// FR-05: Type validation
-// -----------------------------------------------------------------------------
-
+// FR-05: Transaction type validation
 describe("FR-05: Transaction type validation", () => {
   afterEach(async () => {
     await mongoose.connection.collection("transactions").deleteMany({});
@@ -135,54 +106,39 @@ describe("FR-05: Transaction type validation", () => {
 
   test("rejects invalid transaction type", async () => {
     const response = await createTransaction({ type: "transfer" });
+
     expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty("error");
   });
 });
 
-// -----------------------------------------------------------------------------
 // FR-05: Amount validation
-// -----------------------------------------------------------------------------
-
 describe("FR-05: Amount validation", () => {
   afterEach(async () => {
     await mongoose.connection.collection("transactions").deleteMany({});
   });
 
-  test("rejects non-numeric amount", async () => {
-    const response = await createTransaction({ amount: "abc" });
-    expect(response.status).toBe(400);
-  });
+  test.each([
+    ["non-numeric", "abc"],
+    ["zero", 0],
+    ["negative", -100],
+  ])("rejects %s amount", async (_description, amount) => {
+    const response = await createTransaction({ amount });
 
-  test("rejects zero amount", async () => {
-    const response = await createTransaction({ amount: 0 });
     expect(response.status).toBe(400);
-  });
-
-  test("rejects negative amount", async () => {
-    const response = await createTransaction({ amount: -100 });
-    expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty("error");
   });
 });
 
-// -----------------------------------------------------------------------------
-// FR-06: List transactions for requesting user
-// -----------------------------------------------------------------------------
-
+// FR-06: List transactions
 describe("FR-06: List transactions", () => {
   afterEach(async () => {
     await mongoose.connection.collection("transactions").deleteMany({});
   });
 
   test("lists transactions belonging to the requesting user", async () => {
+    await createTransaction({ name: "Lunch", amount: 450 });
     await createTransaction({
-      user_id: "test-user-001",
-      name: "Lunch",
-      category: "Food",
-      amount: 450,
-    });
-
-    await createTransaction({
-      user_id: "test-user-001",
       name: "Bus Ticket",
       category: "Transport",
       amount: 50,
@@ -193,8 +149,6 @@ describe("FR-06: List transactions", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(response.body).toHaveProperty("transactions");
-    expect(Array.isArray(response.body.transactions)).toBe(true);
     expect(response.body.transactions).toHaveLength(2);
     expect(
       response.body.transactions.every(
@@ -209,18 +163,11 @@ describe("FR-06: List transactions", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(response.body).toHaveProperty("transactions");
     expect(response.body.transactions).toEqual([]);
   });
 
-  test("does not return transactions belonging to another user", async () => {
-    await createTransaction({
-      user_id: "test-user-001",
-      name: "My Lunch",
-      category: "Food",
-      amount: 450,
-    });
-
+  test("does not return another user's transactions", async () => {
+    await createTransaction({ name: "My Lunch" });
     await createTransaction({
       user_id: "other-user-002",
       name: "Other User Expense",
@@ -235,19 +182,11 @@ describe("FR-06: List transactions", () => {
     expect(response.status).toBe(200);
     expect(response.body.transactions).toHaveLength(1);
     expect(response.body.transactions[0].user_id).toBe("test-user-001");
-    expect(response.body.transactions[0].name).toBe("My Lunch");
   });
 
   test("returns transactions sorted by newest first", async () => {
+    await createTransaction({ name: "First Transaction", amount: 100 });
     await createTransaction({
-      user_id: "test-user-001",
-      name: "First Transaction",
-      category: "Food",
-      amount: 100,
-    });
-
-    await createTransaction({
-      user_id: "test-user-001",
       name: "Second Transaction",
       category: "Shopping",
       amount: 200,
@@ -264,23 +203,17 @@ describe("FR-06: List transactions", () => {
   });
 });
 
-// -----------------------------------------------------------------------------
-// FR-07: Delete persisted transactions
-// -----------------------------------------------------------------------------
-
+// FR-07: Delete transaction
 describe("FR-07: Delete transaction", () => {
   afterEach(async () => {
     await mongoose.connection.collection("transactions").deleteMany({});
   });
 
   test("deletes a transaction belonging to the requesting user", async () => {
-    const created = await createTransaction({
-      user_id: "test-user-001",
-      name: "Lunch",
-      amount: 450,
-    });
+    const created = await createTransaction();
 
     expect(created.status).toBe(201);
+
     const transactionId = created.body.transaction.id;
 
     const response = await request(app).delete(
@@ -298,11 +231,7 @@ describe("FR-07: Delete transaction", () => {
   });
 
   test("does not delete another user's transaction", async () => {
-    const created = await createTransaction({
-      user_id: "test-user-001",
-      name: "My Lunch",
-    });
-
+    const created = await createTransaction();
     const transactionId = created.body.transaction.id;
 
     const response = await request(app).delete(
@@ -318,7 +247,7 @@ describe("FR-07: Delete transaction", () => {
     expect(remaining).not.toBeNull();
   });
 
-  test("returns 404 for a valid but nonexistent transaction ID", async () => {
+  test("returns 404 for a nonexistent transaction ID", async () => {
     const nonexistentId = new mongoose.Types.ObjectId().toString();
 
     const response = await request(app).delete(
@@ -326,6 +255,7 @@ describe("FR-07: Delete transaction", () => {
     );
 
     expect(response.status).toBe(404);
+    expect(response.body).toHaveProperty("error");
   });
 
   test("returns 400 for an invalid transaction ID", async () => {
@@ -334,6 +264,29 @@ describe("FR-07: Delete transaction", () => {
     );
 
     expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty("error");
+  });
+});
+
+// NFR-05: API Error Handling
+describe("NFR-05: API error responses", () => {
+  test("returns JSON error for malformed JSON", async () => {
+    const response = await request(app)
+      .post("/api/transactions")
+      .set("Content-Type", "application/json")
+      .send('{"user_id":');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: "Invalid JSON request body.",
+    });
+  });
+
+  test("returns JSON error for unknown API endpoint", async () => {
+    const response = await request(app).get("/api/unknown-endpoint");
+
+    expect(response.status).toBe(404);
+    expect(response.body).toHaveProperty("error");
   });
 });
 

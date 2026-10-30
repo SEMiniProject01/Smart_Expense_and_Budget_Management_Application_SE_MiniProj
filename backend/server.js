@@ -415,9 +415,24 @@ app.delete("/api/transactions/:userId/:transactionId", async (req, res) => {
   }
 });
 
+
 // Always return JSON for unknown API endpoints.
 app.use("/api", (_req, res) => {
   return sendError(res, 404, "API endpoint not found.");
+});
+
+// Handle malformed JSON and other request parsing errors.
+app.use((error, req, res, next) => {
+  if (error.type === "entity.parse.failed") {
+    return sendError(res, 400, "Invalid JSON request body.");
+  }
+
+  if (error.type === "entity.too.large") {
+    return sendError(res, 413, "Request body is too large.");
+  }
+
+  console.error("Unhandled API error:", error);
+  return sendError(res, 500, "Internal server error.");
 });
 
 module.exports = app;
