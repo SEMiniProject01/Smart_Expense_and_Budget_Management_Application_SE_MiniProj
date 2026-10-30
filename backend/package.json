@@ -8,13 +8,14 @@
     "test": "jest --runInBand"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "mongoose": "^8.9.5"
   },
   "devDependencies": {
     "jest": "^29.7.0",
-    "supertest": "^7.0.0",
-    "mongodb-memory-server": "^10.1.4"
+    "mongodb-memory-server": "^10.1.4",
+    "supertest": "^7.0.0"
   }
 }
