@@ -28,3 +28,8 @@ npm-debug.log*
 # Environment files (do not commit secrets)
 .env
 .env.local
+.env.*
+!.env.example
+
+# Backups
+*.backup
