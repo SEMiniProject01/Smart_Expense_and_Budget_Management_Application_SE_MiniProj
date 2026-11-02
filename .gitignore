@@ -1,7 +1,18 @@
 # Node dependencies
+<<<<<<< HEAD
 backend/node_modules/
 Frontend/node_modules/
 
+=======
+node_modules/
+backend/node_modules/
+Frontend/node_modules/
+
+# Build outputs
+dist/
+Frontend/dist/
+
+>>>>>>> origin/main
 # Obsolete SQLite files — current implementation uses MongoDB (SRS §2.5)
 backend/smartbudget.db
 backend/smartbudget.db-shm
@@ -11,9 +22,12 @@ backend/smartbudget.db-wal
 .DS_Store
 Frontend/.DS_Store
 
+<<<<<<< HEAD
 # Frontend production build
 Frontend/dist/
 
+=======
+>>>>>>> origin/main
 # Vite dev cache
 Frontend/.vite/
 
@@ -31,5 +45,9 @@ npm-debug.log*
 .env.*
 !.env.example
 
+<<<<<<< HEAD
 # Backups
+=======
+# Local backups
+>>>>>>> origin/main
 *.backup
