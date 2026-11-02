@@ -6,7 +6,6 @@ Frontend/node_modules/
 # Build outputs
 dist/
 Frontend/dist/
-
 # Obsolete SQLite files — current implementation uses MongoDB (SRS §2.5)
 backend/smartbudget.db
 backend/smartbudget.db-shm
