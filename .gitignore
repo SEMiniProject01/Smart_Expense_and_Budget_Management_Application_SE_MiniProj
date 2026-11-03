@@ -1,7 +1,12 @@
 # Node dependencies
+node_modules/
 backend/node_modules/
 Frontend/node_modules/
 node_modules/
+
+# Build outputs
+dist/
+Frontend/dist/
 
 # Obsolete SQLite files — current implementation uses MongoDB (SRS §2.5)
 backend/smartbudget.db
@@ -16,6 +21,7 @@ Frontend/.DS_Store
 Frontend/dist/
 dist/
 
+origin/feature/NFR-09-build-execution-reliability
 # Vite dev cache
 Frontend/.vite/
 
@@ -30,6 +36,12 @@ npm-debug.log*
 # Environment files (do not commit secrets)
 .env
 .env.local
+
+.env.*
+origin/feature/NFR-09-build-execution-reliability
 !.env.example
+
+# Local backups
 *.backup
 .env.*
+origin/feature/NFR-09-build-execution-reliability
