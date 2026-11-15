@@ -1,174 +1,61 @@
-# SmartBudget – Smart Expense & Budget Management Application
+# SmartBudget
 
-##  Project Information
+A full-stack expense & budget prototype for the DBMS/full-stack course project.
 
-**Project Name:** Smartbudget_MiniProject_SE  
-**Project Type:** Software Engineering Mini Project  
-**Class:** 5A  
-**Domain:** Personal Finance Management  
+```
+smartbudget/
+├── frontend/     ← React + Vite dashboard (port 5173)
+├── backend/      ← Express + SQLite auth API (port 5000)
+└── sample_bank_statement.csv  ← test file for the "Upload statement" feature
+```
 
----
+You need **both** running at the same time, in two separate terminal windows.
 
-##  Team Members
+## 1. Backend (start this first)
 
-| Sl. No. | Name | SRN | Class |
-|--------:|------|-----|-------|
-| 1 | Aniket Sen | PES1UG24CS062 | 5A |
-| 2 | Amrutha Kattimani | PES1UG24CS054 | 5A |
-| 3 | Akanksha.P | PES1UG25CS801 | 5A |
+```bash
+cd smartbudget/backend
+npm install
+npm start
+```
 
----
+You should see:
+```
+SmartBudget backend running at http://localhost:5000
+```
 
-##  Project Description
+This creates `smartbudget.db` (a SQLite file) right in the `backend` folder the first time it runs — that's your real database, with a `users` table (`id, name, email, password_hash, created_at`). Passwords are hashed with bcrypt.
 
-**SmartBudget** is a web-based Smart Expense & Budget Management Application designed to help users manage their personal finances.
+Check it any time by visiting `http://localhost:5000/api/users` in a browser while the server is running.
 
-The application allows users to record income and expenses, set monthly financial targets, monitor spending, import transactions from CSV bank statements, analyze spending patterns, manage savings goals, and generate transaction reports.
+## 2. Frontend
 
-The system provides a simple dashboard with financial summaries, budget utilization, spending analytics, alerts, and personalized insights.
+In a **second terminal window** (leave the backend running):
 
----
+```bash
+cd smartbudget/frontend
+npm install
+npm run dev
+```
 
-## Objectives
+Open the URL it prints — usually `http://localhost:5173`.
 
-The main objectives of SmartBudget are:
+## 3. Using it
 
-- To provide an easy-to-use personal finance management system.
-- To allow users to record and manage income and expenses.
-- To help users set and monitor monthly budgets.
-- To automatically categorize transactions imported from CSV statements.
-- To provide visual analytics of spending patterns.
-- To notify users when their spending approaches their budget.
-- To help users track savings goals.
-- To allow users to export transaction data as CSV reports.
+- **Sign up** with a name, email, and a password (6+ characters) → creates a real row in the SQLite database via `POST /api/signup`.
+- **Log out** (gear icon, bottom of the sidebar), then **log back in** with the same credentials → verified against the stored hash via `POST /api/login`.
+- On the dashboard, click **Upload statement** and select `sample_bank_statement.csv` (one level up from `frontend/`) to see transactions get parsed and auto-categorized.
+- Click **Detect next transaction** in the dark "Automatic Expense Detection" card to see the simulated live-detection flow.
 
----
+## Troubleshooting
 
-##  Features
+| Symptom | Fix |
+|---|---|
+| "Failed to resolve import" errors | You're not in the `frontend` folder, or forgot `npm install`. Run `pwd` to check where you are. |
+| "Couldn't reach the server" on login/signup | The backend isn't running. Open a second terminal and follow step 1. |
+| Port 5000 or 5173 already in use | Something else is using that port — close other running servers, or change the `PORT` value in `backend/server.js`. |
 
-### User Account Management
-- User registration
-- User login
-- User logout
-- Password hashing using bcrypt
-- User-specific financial data
+## For your project report
 
-###  Expense & Income Management
-- Add income transactions
-- Add expense transactions
-- View transaction history
-- Delete transactions
-- Categorize transactions
-- Add payment method and notes
-
-###  Budget Management
-- Set monthly income
-- Set overall monthly budget
-- Monitor budget utilization
-- Display budget progress
-- Generate budget alerts
-
-###  Alerts & Insights
-- Budget warning when spending reaches approximately 80%
-- Over-budget notification when spending exceeds the budget
-- Personalized spending insights
-- Spending pattern analysis
-
-###  CSV Statement Import
-- Upload CSV bank statements
-- Parse transaction data
-- Detect debit and credit transactions
-- Automatically categorize transactions
-- Display imported transactions
-
-###  Automatic Expense Detection
-- Demonstration of automatic expense detection
-- Simulated incoming transaction feed
-- Automatic addition of detected transactions
-
-> Note: The automatic expense detection feature is a demonstration and does not represent a live bank or UPI integration.
-
-###  Analytics
-- Income vs. expense analysis
-- Category-wise expense breakdown
-- Spending trends
-- Top spending categories
-- Interactive charts
-
-###  Savings Goals
-- Create savings goals
-- Set target amounts
-- Track current savings
-- Add optional deadlines
-- Delete savings goals
-
-###  Reports
-- View financial summaries
-- Generate transaction reports
-- Export transaction data as CSV
-
-###  User Interface
-- Responsive interface
-- Light theme
-- Dark theme
-- Mobile-friendly layout
-
----
-
-##  Technology Stack
-
-### Frontend
-
-- React.js
-- Vite
-- JavaScript
-- Recharts
-- Papa Parse
-- Lucide React
-
-### Backend
-
-- Node.js
-- Express.js
-- JavaScript
-
-### Database
-
-- MongoDB
-- Mongoose
-
-### Security
-
-- bcryptjs
-- CORS
-
----
-
-##  System Architecture
-
-```text
-              ┌──────────────────────┐
-              │      User / Browser  │
-              └──────────┬───────────┘
-                         │
-                         ▼
-              ┌──────────────────────┐
-              │   React Frontend     │
-              │       + Vite         │
-              └──────────┬───────────┘
-                         │
-                    REST API / JSON
-                         │
-                         ▼
-              ┌──────────────────────┐
-              │  Node.js + Express   │
-              │      Backend         │
-              └──────────┬───────────┘
-                         │
-                      Mongoose
-                         │
-                         ▼
-              ┌──────────────────────┐
-              │       MongoDB        │
-              │      Database        │
-              └──────────────────────┘
+- **Schema**: `backend/db.js` has the `CREATE TABLE` statement. SQLite is used here for a zero-config demo — the same schema works in MySQL/PostgreSQL with minor syntax tweaks (`AUTOINCREMENT` → `AUTO_INCREMENT`, etc.).
+- **Security**: passwords are never stored in plain text — see the `bcrypt.hash` / `bcrypt.compare` calls in `backend/server.js`.
